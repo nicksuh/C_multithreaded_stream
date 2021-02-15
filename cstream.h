@@ -2,16 +2,16 @@
  * \author Hyoung Min Suh
  */
 
-#ifndef _SBUFFER_H_
-#define _SBUFFER_H_
+#ifndef _CSTREAM_H_
+#define _CSTREAM_H_
 
 #include "config.h"
 
-#define SBUFFER_FAILURE -1
-#define SBUFFER_SUCCESS 0
-#define SBUFFER_NO_DATA 1
+#define CSTREAM_FAILURE -1
+#define CSTREAM_SUCCESS 0
+#define CSTREAM_NO_DATA 1
 
-typedef struct sbuffer sbuffer_t;
+typedef struct cstream cstream_t;
 
 typedef void (*generic_func_t)(sensor_data_t);
 
@@ -21,16 +21,16 @@ typedef void (*generic_func_t)(sensor_data_t);
  * \param buffer a double pointer to the buffer that needs to be initialized
  * \param streamJobs kind of job functions that will be attatched to the stream
  * \param threadCount number of total functional thread that will be attatched to the stream 
- * \return SBUFFER_SUCCESS on success and SBUFFER_FAILURE if an error occurred
+ * \return CSTREAM_SUCCESS on success and CSTREAM_FAILURE if an error occurred
  */
-int sbuffer_init(sbuffer_t **buffer, int streamJobs,int threadCount);
+int cstream_init(cstream_t **buffer, int streamJobs,int threadCount);
 
 /**
  * All allocated resources are freed and cleaned up
  * \param buffer a double pointer to the buffer that needs to be freed
- * \return SBUFFER_SUCCESS on success and SBUFFER_FAILURE if an error occurred
+ * \return CSTREAM_SUCCESS on success and CSTREAM_FAILURE if an error occurred
  */
-int sbuffer_free(sbuffer_t **buffer);
+int cstream_free(cstream_t **buffer);
 
 
 /**
@@ -38,17 +38,17 @@ int sbuffer_free(sbuffer_t **buffer);
  * \param buffer a pointer to the buffer that is used
  * \param func a pointer to the generic function that will be applied to the data element of the stream
  * \param job_nr a designated job number that user will assign to the function, should start from 1 and increase consecutively
- * \return SBUFFER_SUCCESS on success and SBUFFER_FAILURE if an error occured
+ * \return CSTREAM_SUCCESS on success and CSTREAM_FAILURE if an error occured
 */
-void stream_function_init(sbuffer_t * buffer, generic_func_t func, int job_nr);
+void stream_function_init(cstream_t * buffer, generic_func_t func, int job_nr);
 
 /**
  * Inserts the sensor data in 'data' that will be processed by stream_function at the end of the stream
  * \param buffer a pointer to the buffer that is used
  * \param data a pointer to sensor_data_t data, that will be copied into the buffer
- * \return SBUFFER_SUCCESS on success and SBUFFER_FAILURE if an error occured
+ * \return CSTREAM_SUCCESS on success and CSTREAM_FAILURE if an error occured
 */
-int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data);
+int cstream_insert(cstream_t *buffer, sensor_data_t *data);
 
 
-#endif  //_SBUFFER_H_
+#endif  //_CSTREAM_H_

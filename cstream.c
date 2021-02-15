@@ -8,7 +8,7 @@
 #include <inttypes.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include "sbuffer.h"
+#include "cstream.h"
 
 
 #ifndef MAXJOB
@@ -18,8 +18,8 @@
 /**
  * basic node for the buffer, these nodes are linked together to create the buffer
  */
-typedef struct sbuffer_node {
-    struct sbuffer_node *next;              /**< a pointer to the next node*/
+typedef struct cstream_node {
+    struct cstream_node *next;              /**< a pointer to the next node*/
     sensor_data_t       data;               /**< a structure containing the data */
     pthread_rwlock_t    nodeLock;
     int                 thread_pass;
@@ -27,12 +27,12 @@ typedef struct sbuffer_node {
     int                 jobFlag[MAXJOB];
     pthread_mutex_t     jobFlagLock;
     int                 EOS;                /**<End of Stream Flag          */
-} sbuffer_node_t;
+} cstream_node_t;
 
 /**
  * a structure to keep track of the buffer
  */
-struct sbuffer {
+struct cstream {
     pthread_rwlock_t    headTailLock; 
     pthread_t           jobs[MAXJOB];
     pthread_t           gcThread; 
@@ -40,36 +40,36 @@ struct sbuffer {
     int                 threadCount;        //this should be same with jobcount if every job has only one thread assign to it.
     pthread_cond_t      newBroadcastCond;
     pthread_mutex_t     newBroadCastLock;
-    sbuffer_node_t      *head;              /**< a pointer to the first node in the buffer */
-    sbuffer_node_t      *tail;              /**< a pointer to the last node in the buffer */
+    cstream_node_t      *head;              /**< a pointer to the first node in the buffer */
+    cstream_node_t      *tail;              /**< a pointer to the last node in the buffer */
 };
 
 typedef struct args {
-    sbuffer_t           *buffer;
-    sbuffer_node_t      *node;
+    cstream_t           *buffer;
+    cstream_node_t      *node;
     generic_func_t      func;
     int                 job_nr;
 }args_t;
 
 typedef void (*generic_func_t)(sensor_data_t);
 
-static void garbage_collector_init(sbuffer_t* buffer );
+static void garbage_collector_init(cstream_t* buffer );
 
 static void *garbage_wrapper(void * args);
 
-static void garbage_collector_recur(sbuffer_t* buffer, sbuffer_node_t *node );
+static void garbage_collector_recur(cstream_t* buffer, cstream_node_t *node );
 
 static void *stream_wrapper(void * args);
 
-static void stream_function_recur_rd(sbuffer_t * buffer, sbuffer_node_t *node, generic_func_t func, int job_nr);
+static void stream_function_recur_rd(cstream_t * buffer, cstream_node_t *node, generic_func_t func, int job_nr);
 
-static int sbuffer_EOS_insert(sbuffer_t *buffer);
+static int cstream_EOS_insert(cstream_t *buffer);
 
 //TODO: DEGUB MOde
 
-int sbuffer_init(sbuffer_t **buffer, int streamJobs,int threadCount) {
-    *buffer = malloc(sizeof(sbuffer_t));
-    if (*buffer == NULL) return SBUFFER_FAILURE;
+int cstream_init(cstream_t **buffer, int streamJobs,int threadCount) {
+    *buffer = malloc(sizeof(cstream_t));
+    if (*buffer == NULL) return CSTREAM_FAILURE;
     (*buffer)->head        = NULL;
     (*buffer)->tail        = NULL;
     (*buffer)->threadCount = threadCount;
@@ -78,59 +78,59 @@ int sbuffer_init(sbuffer_t **buffer, int streamJobs,int threadCount) {
     pthread_mutex_init(&((*buffer)->newBroadCastLock), NULL);
     pthread_cond_init(&((*buffer)->newBroadcastCond),NULL);
     garbage_collector_init(*buffer);
-    return SBUFFER_SUCCESS;
+    return CSTREAM_SUCCESS;
 }
 
-int sbuffer_free(sbuffer_t **buffer) {
-    sbuffer_EOS_insert((*buffer));
+int cstream_free(cstream_t **buffer) {
+    cstream_EOS_insert((*buffer));
     void * ret;
     pthread_join((*buffer)->gcThread,&ret);
 
-    sbuffer_node_t *dummy;
+    cstream_node_t *dummy;
     if ((buffer == NULL) || (*buffer == NULL)) {
-        return SBUFFER_FAILURE;
+        return CSTREAM_FAILURE;
     }
     pthread_mutex_destroy(&((*buffer)->newBroadCastLock));
     pthread_rwlock_destroy(&((*buffer)->headTailLock));
     pthread_cond_destroy(&((*buffer)->newBroadcastCond));
     free(*buffer);
     *buffer = NULL;
-    return SBUFFER_SUCCESS;
+    return CSTREAM_SUCCESS;
 }
 
 
-void garbage_collector_init(sbuffer_t* buffer ){
+void garbage_collector_init(cstream_t* buffer ){
     pthread_create(&(buffer->gcThread),NULL, garbage_wrapper, (void *) buffer);
 }
 
 void *garbage_wrapper(void * args){
-    sbuffer_t * buffer = (sbuffer_t *) args;
+    cstream_t * buffer = (cstream_t *) args;
     pthread_rwlock_rdlock(&(buffer->headTailLock));
     if(buffer->head == NULL){
         pthread_rwlock_unlock(&(buffer->headTailLock));
         pthread_mutex_lock(&(buffer->newBroadCastLock));
         while(buffer->head == NULL)
             pthread_cond_wait(&(buffer->newBroadcastCond),&(buffer->newBroadCastLock));
-        sbuffer_node_t * tmp = buffer->head;
+        cstream_node_t * tmp = buffer->head;
         pthread_mutex_unlock(&(buffer->newBroadCastLock));
         garbage_collector_recur(buffer,tmp);
 
     }else{
-        sbuffer_node_t * tmp = buffer->head;
+        cstream_node_t * tmp = buffer->head;
         pthread_rwlock_unlock(&(buffer->headTailLock));
         garbage_collector_recur(buffer,tmp);
     }
 }
 
 
-void garbage_collector_recur(sbuffer_t* buffer, sbuffer_node_t *node ) {
-    sbuffer_node_t *tmpNode;
-    // if (buffer == NULL) return SBUFFER_FAILURE;
-    // if (buffer->head == NULL) return SBUFFER_NO_DATA;
+void garbage_collector_recur(cstream_t* buffer, cstream_node_t *node ) {
+    cstream_node_t *tmpNode;
+    // if (buffer == NULL) return cstream_FAILURE;
+    // if (buffer->head == NULL) return cstream_NO_DATA;
     sem_wait(&(node->garbage_collection_lock));            //wait at the last thread(tail), it will never free one lasting tail;
     fprintf(stderr,"Garbage Collector deletion started \n");
     // for(int i = 0; i < buffer->jobCount; i ++){
-    //     if(node->jobFlag[i] = 1) return SBUFFER_FAILURE;        //this should not happen
+    //     if(node->jobFlag[i] = 1) return cstream_FAILURE;        //this should not happen
     // }
 
     //Lock priority HeadTailLock >> nodeLock , deadlock advoidance
@@ -154,17 +154,17 @@ void garbage_collector_recur(sbuffer_t* buffer, sbuffer_node_t *node ) {
         sem_destroy(&(node->garbage_collection_lock));
         
         free(node);
-        pthread_exit(SBUFFER_SUCCESS);
+        pthread_exit(CSTREAM_SUCCESS);
     }
 
 
     // while(node->next == NULL){
-    //     return SBUFFER_FAILURE;         //node->next should not be null if semaphore is not 1; 
+    //     return cstream_FAILURE;         //node->next should not be null if semaphore is not 1; 
     // }
 
     buffer->head = buffer->head->next;
     tmpNode = node->next;
-    sbuffer_node_t * tmpnode = node;
+    cstream_node_t * tmpnode = node;
     pthread_rwlock_unlock(&(buffer->headTailLock));
 
     pthread_mutex_destroy(&(node->jobFlagLock));
@@ -175,7 +175,7 @@ void garbage_collector_recur(sbuffer_t* buffer, sbuffer_node_t *node ) {
 }
 
 
-void stream_function_init(sbuffer_t * buffer, generic_func_t func, int job_nr){
+void stream_function_init(cstream_t * buffer, generic_func_t func, int job_nr){
     args_t *myargs        = (args_t *)malloc(sizeof(args_t));
             myargs->buffer = buffer;
             myargs->func   = func;
@@ -185,7 +185,7 @@ void stream_function_init(sbuffer_t * buffer, generic_func_t func, int job_nr){
 
 void *stream_wrapper(void * args){
     args_t * myargs = (args_t *) args;
-    sbuffer_t* buffer =  myargs->buffer;
+    cstream_t* buffer =  myargs->buffer;
     generic_func_t func = myargs->func;
     int job_nr = myargs->job_nr;
 
@@ -196,17 +196,17 @@ void *stream_wrapper(void * args){
         pthread_mutex_lock(&(buffer->newBroadCastLock));
         while(buffer->head == NULL)
             pthread_cond_wait(&(buffer->newBroadcastCond),&(buffer->newBroadCastLock));
-        sbuffer_node_t * tmp = buffer->head;
+        cstream_node_t * tmp = buffer->head;
         pthread_mutex_unlock(&(buffer->newBroadCastLock));
         stream_function_recur_rd( buffer, tmp, func,job_nr );
     }else{
-        sbuffer_node_t * tmp = buffer->head;
+        cstream_node_t * tmp = buffer->head;
         pthread_rwlock_unlock(&(buffer->headTailLock));
         stream_function_recur_rd( buffer, tmp, func,job_nr );
     }
 }
 
-void stream_function_recur_rd(sbuffer_t * buffer, sbuffer_node_t *node, generic_func_t func, int job_nr){
+void stream_function_recur_rd(cstream_t * buffer, cstream_node_t *node, generic_func_t func, int job_nr){
     pthread_rwlock_rdlock(&(node->nodeLock));
     if(node->next == NULL){
         pthread_mutex_lock(&(node->jobFlagLock));
@@ -215,7 +215,7 @@ void stream_function_recur_rd(sbuffer_t * buffer, sbuffer_node_t *node, generic_
             pthread_rwlock_unlock(&(node->nodeLock));
             sem_post(&(node->garbage_collection_lock));    //let GC read EOS
             //thread terminate
-            pthread_exit(SBUFFER_SUCCESS);
+            pthread_exit(CSTREAM_SUCCESS);
 
         }
         if(node->jobFlag[job_nr]){
@@ -254,7 +254,7 @@ void stream_function_recur_rd(sbuffer_t * buffer, sbuffer_node_t *node, generic_
             pthread_rwlock_unlock(&(node->nodeLock));
             sem_post(&(node->garbage_collection_lock));
             //thread terminate
-            pthread_exit(SBUFFER_SUCCESS);
+            pthread_exit(CSTREAM_SUCCESS);
 
         }
         if(node->jobFlag[job_nr]){
@@ -263,7 +263,7 @@ void stream_function_recur_rd(sbuffer_t * buffer, sbuffer_node_t *node, generic_
 
 
             func((sensor_data_t)node->data);          //this should be generic strictly speaking but I stick to sensor_data_t in this assignment. 
-            sbuffer_node_t *tmp = node->next;
+            cstream_node_t *tmp = node->next;
 
             node->thread_pass --;
             if(node->thread_pass == 0)
@@ -273,7 +273,7 @@ void stream_function_recur_rd(sbuffer_t * buffer, sbuffer_node_t *node, generic_
             stream_function_recur_rd(buffer,tmp,func,job_nr);
         }else{
             pthread_mutex_unlock(&(node->jobFlagLock));
-            sbuffer_node_t *tmp = node->next;
+            cstream_node_t *tmp = node->next;
 
             node->thread_pass --;
             if(node->thread_pass == 0)
@@ -286,11 +286,11 @@ void stream_function_recur_rd(sbuffer_t * buffer, sbuffer_node_t *node, generic_
 }
 
 //thread safe
-int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data) {
-    sbuffer_node_t *dummy;
-    if (buffer == NULL) return SBUFFER_FAILURE;
-    dummy = malloc(sizeof(sbuffer_node_t));
-    if (dummy == NULL) return SBUFFER_FAILURE;
+int cstream_insert(cstream_t *buffer, sensor_data_t *data) {
+    cstream_node_t *dummy;
+    if (buffer == NULL) return CSTREAM_FAILURE;
+    dummy = malloc(sizeof(cstream_node_t));
+    if (dummy == NULL) return CSTREAM_FAILURE;
 
     //initializing new node with mutex, readwrite,  and semaphore locks. 
     dummy->data = *data;
@@ -318,7 +318,7 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data) {
         //Header-> BroadCast -> nodeLock order always 
         pthread_mutex_lock(&(buffer->newBroadCastLock));    //BroadCast Routine
         pthread_rwlock_wrlock(&(buffer->tail->nodeLock));
-        sbuffer_node_t* tmp = buffer->tail;
+        cstream_node_t* tmp = buffer->tail;
         buffer->tail->next = dummy;
         buffer->tail       = dummy;
         pthread_cond_broadcast(&(buffer->newBroadcastCond));
@@ -326,15 +326,15 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data) {
         pthread_mutex_unlock(&(buffer->newBroadCastLock));
     }
     pthread_rwlock_unlock(&(buffer->headTailLock));
-    return SBUFFER_SUCCESS;
+    return CSTREAM_SUCCESS;
 }
 
 
-int sbuffer_EOS_insert(sbuffer_t *buffer) {     //this is the termination Call
-    sbuffer_node_t *dummy;
-    if (buffer == NULL) return SBUFFER_FAILURE;
-    dummy = malloc(sizeof(sbuffer_node_t));
-    if (dummy == NULL) return SBUFFER_FAILURE;
+int cstream_EOS_insert(cstream_t *buffer) {     //this is the termination Call
+    cstream_node_t *dummy;
+    if (buffer == NULL) return CSTREAM_FAILURE;
+    dummy = malloc(sizeof(cstream_node_t));
+    if (dummy == NULL) return CSTREAM_FAILURE;
 
     //initializing new node with mutex, readwrite,  and semaphore locks. 
     dummy->next = NULL;
@@ -361,7 +361,7 @@ int sbuffer_EOS_insert(sbuffer_t *buffer) {     //this is the termination Call
         //Header-> BroadCast -> nodeLock order always 
         pthread_mutex_lock(&(buffer->newBroadCastLock));    //BroadCast Routine
         pthread_rwlock_wrlock(&(buffer->tail->nodeLock));
-        sbuffer_node_t* tmp = buffer->tail;
+        cstream_node_t* tmp = buffer->tail;
         buffer->tail->next = dummy;
         buffer->tail       = dummy;
         pthread_cond_broadcast(&(buffer->newBroadcastCond));
@@ -369,7 +369,7 @@ int sbuffer_EOS_insert(sbuffer_t *buffer) {     //this is the termination Call
         pthread_mutex_unlock(&(buffer->newBroadCastLock));
     }
     pthread_rwlock_unlock(&(buffer->headTailLock));
-    return SBUFFER_SUCCESS;
+    return CSTREAM_SUCCESS;
 }
 
 
@@ -386,8 +386,8 @@ void *my_print1(sensor_data_t data){
 }
 
 int main() {
-    sbuffer_t * my_stream;
-    sbuffer_init(&my_stream,2,2);
+    cstream_t * my_stream;
+    cstream_init(&my_stream,2,2);
     stream_function_init(my_stream,my_print,1);
     stream_function_init(my_stream,my_print1,2);
     for(int i = 1; i < 20000; i ++ ){
@@ -395,8 +395,8 @@ int main() {
         mydata.id    = i;
         mydata.ts    = time(NULL);
         mydata.value = 1232;
-        sbuffer_insert(my_stream,&mydata);
+        cstream_insert(my_stream,&mydata);
     }
-    sbuffer_free(&my_stream);
+    cstream_free(&my_stream);
 }
 
