@@ -1,9 +1,11 @@
 # C Thread Stream
 A easy to use multithreading library for C.
-It is a ty, easy integration
-stream like job scheduler with an automatic garbage collector.
-scalabili
-* for non I/O bound jobs
+It is a handy stream like job scheduler with an automatic garbage collector.
+This is a multithreaded job scheduler for non I/O bound computation.
+
+* scalability
+* easy to integrate
+* easy to use
 
 ## Use Case
 
