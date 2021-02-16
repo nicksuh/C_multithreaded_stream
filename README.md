@@ -63,7 +63,7 @@ A garbage collector will free resources when all job functions have visited and 
 ```
 ### Example output
 
-```Bash
+```
 ./cstream
 function call 1 id is called 
 this is second thread function call 1 id is called 
