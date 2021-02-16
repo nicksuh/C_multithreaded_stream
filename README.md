@@ -1,5 +1,5 @@
 # C Thread Stream
-A easy to use multithreading library for C.
+A easy to use multithreading thread pool library for C.
 It is a handy stream-like job scheduler with an automatic garbage collector for non I/O bound computation.
 
 * scalability
