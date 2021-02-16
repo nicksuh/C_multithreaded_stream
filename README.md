@@ -64,7 +64,7 @@ A garbage collector will free resources when all job functions have visited and 
 ## Make
 
 ```Make
-testVal:
+test:
 	gcc -O3 -g sbuffer.h sbuffer.c -lpthread -o sbuffer
 	./sbuffer
 ```
