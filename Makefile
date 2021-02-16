@@ -1,3 +1,3 @@
 test:
-	gcc -O3 -g sbuffer.h sbuffer.c -lpthread -o sbuffer
-	./sbuffer
+	gcc -O3 -g cstream.h cstream.c -lpthread -o cstream
+	./cstream
