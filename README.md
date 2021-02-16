@@ -61,6 +61,41 @@ A garbage collector will free resources when all job functions have visited and 
 ```C
         cstream_insert(my_stream,&mydata);
 ```
+### Example output
+
+```Bash
+./cstream
+function call 1 id is called 
+this is second thread function call 1 id is called 
+this is second thread function call 2 id is called 
+this is second thread function call 3 id is called 
+this is second thread function call 4 id is called 
+this is second thread function call 5 id is called 
+this is second thread function call 6 id is called 
+this is second thread function call 7 id is called 
+function call 2 id is called 
+function call 3 id is called 
+function call 4 id is called 
+Garbage Collector deletion started 
+function call 5 id is called 
+function call 6 id is called 
+function call 7 id is called 
+function call 8 id is called 
+function call 9 id is called 
+this is second thread function call 8 id is called 
+this is second thread function call 9 id is called 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+GarbageCollector At EOS, Joining All Job thread and Terminating 
+```
+
 ## Make
 
 ```Make
