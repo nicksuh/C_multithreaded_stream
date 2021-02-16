@@ -61,39 +61,42 @@ A garbage collector will free resources when all job functions have visited and 
 ```C
         cstream_insert(my_stream,&mydata);
 ```
-### Example output
-
+Example output
 ```
 ./cstream
 function call 1 id is called 
+function call 2 id is called 
+function call 3 id is called 
+function call 4 id is called 
+function call 5 id is called 
+function call 6 id is called 
 this is second thread function call 1 id is called 
 this is second thread function call 2 id is called 
 this is second thread function call 3 id is called 
 this is second thread function call 4 id is called 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
+Garbage Collector deletion started 
 this is second thread function call 5 id is called 
 this is second thread function call 6 id is called 
-this is second thread function call 7 id is called 
-function call 2 id is called 
-function call 3 id is called 
-function call 4 id is called 
-Garbage Collector deletion started 
-function call 5 id is called 
-function call 6 id is called 
-function call 7 id is called 
-function call 8 id is called 
-function call 9 id is called 
-this is second thread function call 8 id is called 
-this is second thread function call 9 id is called 
-Garbage Collector deletion started 
-Garbage Collector deletion started 
-Garbage Collector deletion started 
-Garbage Collector deletion started 
-Garbage Collector deletion started 
-Garbage Collector deletion started 
 Garbage Collector deletion started 
 Garbage Collector deletion started 
 Garbage Collector deletion started 
 GarbageCollector At EOS, Joining All Job thread and Terminating 
+```
+Valgrind check after 1,000,000 insertion.
+```
+GarbageCollector At EOS, Joining All Job thread and Terminating 
+==970== 
+==970== HEAP SUMMARY:
+==970==     in use at exit: 0 bytes in 0 blocks
+==970==   total heap usage: 1,000,011 allocs, 1,000,011 frees, 256,002,926 bytes allocated
+==970== 
+==970== All heap blocks were freed -- no leaks are possible
+==970== 
+==970== For lists of detected and suppressed errors, rerun with: -s
+==970== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 ```
 
 ## Make

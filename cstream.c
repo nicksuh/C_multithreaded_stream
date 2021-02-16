@@ -402,7 +402,7 @@ int main() {
     cstream_init(&my_stream,2,2);
     stream_function_init(my_stream,my_print,1);
     stream_function_init(my_stream,my_print1,2);
-    for(int i = 1; i < 100001; i ++ ){
+    for(int i = 1; i < 1000000; i ++ ){
         sensor_data_t mydata;
         mydata.id    = i;
         mydata.ts    = time(NULL);
