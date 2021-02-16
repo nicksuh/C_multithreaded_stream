@@ -124,6 +124,8 @@ void *garbage_wrapper(void * args){
 
 
 void garbage_collector_recur(cstream_t* buffer, cstream_node_t *node ) {
+    func_start: ;
+
     cstream_node_t *tmpNode;
     // if (buffer == NULL) return cstream_FAILURE;
     // if (buffer->head == NULL) return cstream_NO_DATA;
@@ -164,14 +166,15 @@ void garbage_collector_recur(cstream_t* buffer, cstream_node_t *node ) {
 
     buffer->head = buffer->head->next;
     tmpNode = node->next;
-    cstream_node_t * tmpnode = node;
+    
     pthread_rwlock_unlock(&(buffer->headTailLock));
 
     pthread_mutex_destroy(&(node->jobFlagLock));
     pthread_rwlock_destroy(&(node->nodeLock));
     sem_destroy(&(node->garbage_collection_lock));
     free(node);
-    garbage_collector_recur(buffer,tmpNode);
+    node = tmpNode;
+    goto func_start;
 }
 
 
@@ -207,6 +210,8 @@ void *stream_wrapper(void * args){
 }
 
 void stream_function_recur_rd(cstream_t * buffer, cstream_node_t *node, generic_func_t func, int job_nr){
+    func_start: ;
+
     pthread_rwlock_rdlock(&(node->nodeLock));
     if(node->next == NULL){
         pthread_mutex_lock(&(node->jobFlagLock));
@@ -232,8 +237,9 @@ void stream_function_recur_rd(cstream_t * buffer, cstream_node_t *node, generic_
                 pthread_cond_wait(&(buffer->newBroadcastCond),&(buffer->newBroadCastLock));         //wait for new node to be added
             pthread_mutex_unlock(&(buffer->newBroadCastLock));
 
-            //recursion
-            stream_function_recur_rd(buffer,node,func,job_nr);       //back to own node for safety
+            //goto recursion
+            //equivalent to stream_function_recur_rd(buffer,node,func,job_nr);       back to own node for safety
+            goto func_start;
         }else{
             pthread_mutex_unlock(&(node->jobFlagLock));
             pthread_rwlock_unlock(&(node->nodeLock));
@@ -244,8 +250,9 @@ void stream_function_recur_rd(cstream_t * buffer, cstream_node_t *node, generic_
                 pthread_cond_wait(&(buffer->newBroadcastCond),&(buffer->newBroadCastLock));         //wait for new node to be added
             pthread_mutex_unlock(&(buffer->newBroadCastLock));
 
-            //recursion
-            stream_function_recur_rd(buffer,node,func,job_nr);       //back to own node for safety
+            //goto recursion
+            //equivalent to stream_function_recur_rd(buffer,node,func,job_nr);       //back to own node for safety
+            goto func_start;
         }
     }else{
         pthread_mutex_lock(&(node->jobFlagLock));
@@ -270,7 +277,10 @@ void stream_function_recur_rd(cstream_t * buffer, cstream_node_t *node, generic_
                 sem_post(&(node->garbage_collection_lock));
 
             pthread_rwlock_unlock(&(node->nodeLock));
-            stream_function_recur_rd(buffer,tmp,func,job_nr);
+            //stream_function_recur_rd(buffer,tmp,func,job_nr);
+            node = tmp;
+            goto func_start;
+
         }else{
             pthread_mutex_unlock(&(node->jobFlagLock));
             cstream_node_t *tmp = node->next;
@@ -280,7 +290,9 @@ void stream_function_recur_rd(cstream_t * buffer, cstream_node_t *node, generic_
                 sem_post(&(node->garbage_collection_lock));
 
             pthread_rwlock_unlock(&(node->nodeLock));
-            stream_function_recur_rd(buffer,tmp,func,job_nr);
+            //stream_function_recur_rd(buffer,tmp,func,job_nr);
+            node = tmp;
+            goto func_start;
         }
     }
 }
@@ -390,7 +402,7 @@ int main() {
     cstream_init(&my_stream,2,2);
     stream_function_init(my_stream,my_print,1);
     stream_function_init(my_stream,my_print1,2);
-    for(int i = 1; i < 10; i ++ ){
+    for(int i = 1; i < 100001; i ++ ){
         sensor_data_t mydata;
         mydata.id    = i;
         mydata.ts    = time(NULL);
