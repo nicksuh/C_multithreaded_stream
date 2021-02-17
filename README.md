@@ -100,7 +100,7 @@ GarbageCollector At EOS, Joining All Job thread and Terminating
 ```
 
 ## Make
-
+Previously due to tail recursion, -O3 level optimization was needed. However, it is no longer needed.
 ```Make
 test:
 	gcc -O3 -g sbuffer.h sbuffer.c -lpthread -o sbuffer
