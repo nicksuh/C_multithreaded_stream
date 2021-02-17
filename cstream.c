@@ -124,8 +124,7 @@ void *garbage_wrapper(void * args){
 
 
 void garbage_collector_recur(cstream_t* buffer, cstream_node_t *node ) {
-    func_start: ;
-
+    func_start: ; // recursion point
     cstream_node_t *tmpNode;
     // if (buffer == NULL) return cstream_FAILURE;
     // if (buffer->head == NULL) return cstream_NO_DATA;
@@ -210,7 +209,7 @@ void *stream_wrapper(void * args){
 }
 
 void stream_function_recur_rd(cstream_t * buffer, cstream_node_t *node, generic_func_t func, int job_nr){
-    func_start: ;
+    func_start: ; //recursion point. 
 
     pthread_rwlock_rdlock(&(node->nodeLock));
     if(node->next == NULL){
