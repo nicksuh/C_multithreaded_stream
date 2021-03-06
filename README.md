@@ -103,8 +103,15 @@ GarbageCollector At EOS, Joining All Job thread and Terminating
 Previously due to tail recursion, -O3 level optimization was needed. However, it is no longer needed.
 ```Make
 test:
-	gcc -O3 -g sbuffer.h sbuffer.c -lpthread -o sbuffer
-	./sbuffer
+	gcc -O3 -g cstream.h cstream.c -lpthread -o cstream
+	./cstream
+
+test_full:
+	gcc -O3 -g cstream.h cstream.c -lpthread -o cstream
+	valgrind --leak-check=full \
+         --show-leak-kinds=all \
+         --track-origins=yes \
+		./cstream
 ```
 
 ## Remarks
